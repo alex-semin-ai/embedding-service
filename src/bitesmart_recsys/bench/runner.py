@@ -93,13 +93,28 @@ def recall_at_k(found: NDArray[np.int64], truth: NDArray[np.int64]) -> float:
 
 
 def _rss_mb() -> float:
-    return float(psutil.Process().memory_info().rss) / 2**20
+    """Process memory in MB. Windows trims the working set under pressure, so use the
+    private (committed) bytes there. Elsewhere RSS is the usual measure."""
+    info = psutil.Process().memory_info()
+    return float(getattr(info, "private", info.rss)) / 2**20
 
 
-def _isolated_build_worker(
-    spec: IndexSpec, vectors: NDArray[np.float32], payloads: list[dict[str, Any]]
-) -> float:
-    """Runs in a fresh process, so the RSS growth belongs to this index alone."""
+def _isolated_build_worker(spec: IndexSpec, data_dir: str) -> float:
+    """Runs in a fresh process, so the RSS growth belongs to this index alone.
+
+    The data is read from files, not received as an argument, so no transient pickle
+    buffers are alive when the baseline is taken. A tiny warm-up index loads the native
+    libraries first, so their one-off cost is not charged to the index.
+    """
+    import pickle
+    from pathlib import Path
+
+    warm_up = create_index(spec.name, **spec.build)
+    warm_up.close()
+    base = Path(data_dir)
+    vectors = np.load(base / "vectors.npy")
+    with (base / "payloads.pkl").open("rb") as fh:
+        payloads = pickle.load(fh)
     gc.collect()
     before = _rss_mb()
     index = create_index(spec.name, **spec.build)
@@ -129,11 +144,19 @@ def measure_build_memory(spec: IndexSpec, data: BenchData) -> float | None:
     if spec.name == "qdrant" and spec.build.get("url"):
         return None  # measured around the real build in run_benchmark
     import multiprocessing as mp
+    import pickle
+    import tempfile
     from concurrent.futures import ProcessPoolExecutor
+    from pathlib import Path
 
     try:
-        with ProcessPoolExecutor(max_workers=1, mp_context=mp.get_context("spawn")) as pool:
-            return pool.submit(_isolated_build_worker, spec, data.vectors, data.payloads).result()
+        with tempfile.TemporaryDirectory() as tmp:
+            np.save(Path(tmp) / "vectors.npy", data.vectors)
+            with (Path(tmp) / "payloads.pkl").open("wb") as fh:
+                pickle.dump(data.payloads, fh)
+            ctx = mp.get_context("spawn")
+            with ProcessPoolExecutor(max_workers=1, mp_context=ctx) as pool:
+                return pool.submit(_isolated_build_worker, spec, tmp).result()
     except Exception:  # unavailable optional backend or sandboxed environment
         logger.warning(
             "isolated memory measurement failed", extra={"index": spec.name}, exc_info=True

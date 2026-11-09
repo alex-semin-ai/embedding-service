@@ -49,9 +49,7 @@ def serve(
 
 
 @app.command("generate-catalog")
-def generate_catalog(
-    n: int = 2000, seed: int = 42, out: Path = Path("data/catalog.jsonl")
-) -> None:
+def generate_catalog(n: int = 2000, seed: int = 42, out: Path = Path("data/catalog.jsonl")) -> None:
     """Write a seeded synthetic Open Food Facts style catalog."""
     from bitesmart_recsys.recsys import generate_products, write_products
 
@@ -200,7 +198,10 @@ def demo(
         body = client.post("/v1/embeddings", json={"model": model, "input": texts}).json()
         vecs = np.array([d["embedding"] for d in body["data"]])
         typer.echo(f"dim={vecs.shape[1]} usage={body['usage']}")
-        typer.echo(f"cosine(yogurt, yoghurt)={vecs[0] @ vecs[1]:.3f}  cosine(yogurt, chocolate)={vecs[0] @ vecs[2]:.3f}")
+        similar, different = vecs[0] @ vecs[1], vecs[0] @ vecs[2]
+        typer.echo(
+            f"cosine(yogurt, yoghurt)={similar:.3f}  cosine(yogurt, chocolate)={different:.3f}"
+        )
 
         typer.echo("\n== 3. dynamic batching, 48 concurrent single-text requests")
 
@@ -244,7 +245,9 @@ def demo(
         rec = client.post(
             "/v1/recommend", json={"source_id": source.id, "top_n": 5, "config": cfg}
         ).json()
-        typer.echo(f"source: {rec['source_name']} (sugars {source.nutriments['sugars_100g']} g/100g)")
+        typer.echo(
+            f"source: {rec['source_name']} (sugars {source.nutriments['sugars_100g']} g/100g)"
+        )
         for item in rec["items"]:
             typer.echo(
                 f"  {item['score']:.3f}  {item['product_name']}  "

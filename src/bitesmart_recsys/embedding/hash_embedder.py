@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+from itertools import pairwise
 
 import numpy as np
 
@@ -26,7 +27,7 @@ class HashEmbedder:
     @staticmethod
     def _tokens(text: str) -> list[str]:
         words = _TOKEN.findall(text.lower())
-        return words + [f"{a}_{b}" for a, b in zip(words, words[1:], strict=False)]
+        return words + [f"{a}_{b}" for a, b in pairwise(words)]
 
     def _bucket(self, token: str) -> tuple[int, float]:
         digest = hashlib.blake2b(token.encode(), digest_size=8).digest()

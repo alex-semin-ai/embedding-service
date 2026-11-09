@@ -42,7 +42,9 @@ def make_clustered(
     centroids /= np.linalg.norm(centroids, axis=1, keepdims=True)
 
     leaf_idx = np.array([leaves[p.categories_hierarchy[-1]] for p in products])
-    vectors = centroids[leaf_idx] + noise / np.sqrt(dim) * rng.normal(size=(len(products), dim)).astype(np.float32)
+    vectors = centroids[leaf_idx] + noise / np.sqrt(dim) * rng.normal(
+        size=(len(products), dim)
+    ).astype(np.float32)
     vectors /= np.linalg.norm(vectors, axis=1, keepdims=True)
     payloads = [p.to_payload() for p in products]
     return BenchData(

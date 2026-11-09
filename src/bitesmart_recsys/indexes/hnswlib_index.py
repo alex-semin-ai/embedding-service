@@ -45,9 +45,7 @@ class HnswlibIndex(VectorIndex):
                 current //= 2
         return [], []
 
-    def search(
-        self, queries: Matrix, k: int, flt: Filter | None = None
-    ) -> tuple[IdMatrix, Matrix]:
+    def search(self, queries: Matrix, k: int, flt: Filter | None = None) -> tuple[IdMatrix, Matrix]:
         self._index.set_ef(max(self.ef_search, k))
         mask = self.allowed_mask(flt)
         ids_out, scores_out = self.empty_result(len(queries), k)
@@ -59,9 +57,8 @@ class HnswlibIndex(VectorIndex):
             scores_out[row, : len(scores)] = scores
         return ids_out, scores_out
 
-    def set_search_params(self, ef_search: int | None = None) -> None:
-        if ef_search is not None:
-            self.ef_search = int(ef_search)
+    def set_search_params(self, **params: Any) -> None:
+        self.ef_search = self._accept_params(params, {"ef_search"}).get("ef_search", self.ef_search)
 
     def describe(self) -> dict[str, Any]:
         return {

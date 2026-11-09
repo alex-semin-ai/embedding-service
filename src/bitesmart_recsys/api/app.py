@@ -65,7 +65,11 @@ class AppState:
 
 class ApiError(Exception):
     def __init__(
-        self, status: int, message: str, type_: str = "invalid_request_error", param: str | None = None
+        self,
+        status: int,
+        message: str,
+        type_: str = "invalid_request_error",
+        param: str | None = None,
     ) -> None:
         self.status, self.message, self.type_, self.param = status, message, type_, param
 
@@ -95,7 +99,9 @@ def create_app(settings: Settings | None = None, embedder: Embedder | None = Non
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        model = embedder or await asyncio.to_thread(create_embedder, settings)
+        model = embedder
+        if model is None:
+            model = await asyncio.to_thread(create_embedder, settings)
         batcher = DynamicBatcher(
             model, settings.max_batch_size, settings.max_wait_ms, settings.max_queue_size
         )
@@ -179,7 +185,9 @@ def create_app(settings: Settings | None = None, embedder: Embedder | None = Non
     async def embeddings(req: EmbeddingRequest) -> EmbeddingResponse:
         st = state()
         if req.model != st.embedder.model_name:
-            raise ApiError(404, f"The model `{req.model}` does not exist.", "invalid_request_error", "model")
+            raise ApiError(
+                404, f"The model `{req.model}` does not exist.", "invalid_request_error", "model"
+            )
         texts = [req.input] if isinstance(req.input, str) else list(req.input)
         if not texts or len(texts) > MAX_INPUTS:
             raise ApiError(400, f"input must contain 1 to {MAX_INPUTS} items.", param="input")
@@ -207,13 +215,17 @@ def create_app(settings: Settings | None = None, embedder: Embedder | None = Non
             for i, v in enumerate(vectors)
         ]
         return EmbeddingResponse(
-            data=data, model=st.embedder.model_name, usage=Usage(prompt_tokens=tokens, total_tokens=tokens)
+            data=data,
+            model=st.embedder.model_name,
+            usage=Usage(prompt_tokens=tokens, total_tokens=tokens),
         )
 
     def need_recommender() -> Recommender:
         rec = state().recommender
         if rec is None:
-            raise ApiError(503, "No catalog loaded, set BITESMART_CATALOG_PATH.", "service_unavailable")
+            raise ApiError(
+                503, "No catalog loaded, set BITESMART_CATALOG_PATH.", "service_unavailable"
+            )
         return rec
 
     @app.post("/v1/search", response_model=SearchResponse, dependencies=[Auth])
@@ -224,7 +236,9 @@ def create_app(settings: Settings | None = None, embedder: Embedder | None = Non
         config = RecommendationConfig()
         config.candidate_search.hard_constraints = req.constraints
         config.candidate_search.limit = max(req.k, config.candidate_search.limit)
-        config.candidate_search.top_k = min(config.candidate_search.top_k, config.candidate_search.limit)
+        config.candidate_search.top_k = min(
+            config.candidate_search.top_k, config.candidate_search.limit
+        )
         hits = await asyncio.to_thread(rec.search_vector, vector, req.k, config)
         return SearchResponse(
             index=rec.index.name,

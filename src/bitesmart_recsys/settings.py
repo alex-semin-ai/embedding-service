@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     max_queue_size: int = 1024
 
     # Server
-    host: str = "0.0.0.0"  # noqa: S104 - the server is meant to run inside a container
+    host: str = "0.0.0.0"
     port: int = 8000
     api_key: str | None = None
     log_level: str = "INFO"

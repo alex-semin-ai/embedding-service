@@ -80,7 +80,7 @@ class QdrantIndex(VectorIndex):
         if self.is_server:
             for field, schema in self.payload_schema.items():
                 self._client.create_payload_index(
-                    self.collection, field_name=field, field_schema=schema
+                    self.collection, field_name=field, field_schema=qm.PayloadSchemaType(schema)
                 )
         self._client.upload_collection(
             self.collection,
@@ -91,9 +91,7 @@ class QdrantIndex(VectorIndex):
         )
         logger.info("qdrant collection built", extra={"collection": self.collection, "n": self.n})
 
-    def search(
-        self, queries: Matrix, k: int, flt: Filter | None = None
-    ) -> tuple[IdMatrix, Matrix]:
+    def search(self, queries: Matrix, k: int, flt: Filter | None = None) -> tuple[IdMatrix, Matrix]:
         qfilter = to_qdrant_filter(flt)
         params = qm.SearchParams(hnsw_ef=self.hnsw_ef, exact=False) if self.is_server else None
         ids_out, scores_out = self.empty_result(len(queries), k)
@@ -111,9 +109,8 @@ class QdrantIndex(VectorIndex):
                 scores_out[row, col] = point.score
         return ids_out, scores_out
 
-    def set_search_params(self, hnsw_ef: int | None = None) -> None:
-        if hnsw_ef is not None:
-            self.hnsw_ef = int(hnsw_ef)
+    def set_search_params(self, **params: Any) -> None:
+        self.hnsw_ef = self._accept_params(params, {"hnsw_ef"}).get("hnsw_ef", self.hnsw_ef)
 
     def describe(self) -> dict[str, Any]:
         mode = "server" if self.is_server else "embedded-exact"

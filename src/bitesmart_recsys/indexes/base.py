@@ -56,6 +56,12 @@ class VectorIndex(ABC):
         if params:
             raise TypeError(f"{self.name} has no search parameters {sorted(params)}")
 
+    def _accept_params(self, params: dict[str, Any], allowed: set[str]) -> dict[str, int]:
+        unknown = set(params) - allowed
+        if unknown:
+            raise TypeError(f"{self.name} has no search parameters {sorted(unknown)}")
+        return {k: int(v) for k, v in params.items() if v is not None}
+
     def describe(self) -> dict[str, Any]:
         return {"index": self.name}
 
@@ -63,7 +69,7 @@ class VectorIndex(ABC):
         """Size of the index structure in bytes, or None when the backend cannot tell."""
         return None
 
-    def close(self) -> None:  # noqa: B027 - optional hook
+    def close(self) -> None:
         return None
 
     # ---- helpers for subclasses

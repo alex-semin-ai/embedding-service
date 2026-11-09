@@ -33,7 +33,8 @@ def to_markdown(results: list[Result], k: int = 10) -> str:
         lines += [
             f"## Filter `{fname}` (selectivity {rows[0].selectivity:.1%})",
             "",
-            f"| index | search params | recall@{k} | p50 ms | p95 ms | QPS | index MB | build RSS MB | build s |",
+            f"| index | search params | recall@{k} | p50 ms | p95 ms | QPS | index MB "
+            "| build RSS MB | build s |",
             "|---|---|---|---|---|---|---|---|---|",
         ]
         for r in sorted(rows, key=lambda x: (x.index, x.p50_ms)):

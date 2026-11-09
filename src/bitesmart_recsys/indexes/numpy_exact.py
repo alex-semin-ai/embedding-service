@@ -22,9 +22,7 @@ class NumpyExactIndex(VectorIndex):
     def _build(self, vectors: Matrix, payloads: Sequence[Mapping[str, Any]]) -> None:
         self._vectors = vectors
 
-    def search(
-        self, queries: Matrix, k: int, flt: Filter | None = None
-    ) -> tuple[IdMatrix, Matrix]:
+    def search(self, queries: Matrix, k: int, flt: Filter | None = None) -> tuple[IdMatrix, Matrix]:
         mask = self.allowed_mask(flt)
         ids_out, scores_out = self.empty_result(len(queries), k)
         kk = min(k, self.n)
@@ -32,8 +30,10 @@ class NumpyExactIndex(VectorIndex):
             block = queries[start : start + self._CHUNK] @ self._vectors.T
             if mask is not None:
                 block[:, ~mask] = -np.inf
-            top = np.argpartition(-block, kk - 1, axis=1)[:, :kk] if kk < self.n else (
-                np.tile(np.arange(self.n), (len(block), 1))
+            top = (
+                np.argpartition(-block, kk - 1, axis=1)[:, :kk]
+                if kk < self.n
+                else (np.tile(np.arange(self.n), (len(block), 1)))
             )
             top_scores = np.take_along_axis(block, top, axis=1)
             order = np.argsort(-top_scores, axis=1)

@@ -41,7 +41,9 @@ class Catalog:
         cls, products: list[Product], embedder: Embedder, batch_size: int = 64
     ) -> Catalog:
         texts = [p.to_passage_text() for p in products]
-        chunks = [embedder.embed(texts[i : i + batch_size]) for i in range(0, len(texts), batch_size)]
+        chunks = [
+            embedder.embed(texts[i : i + batch_size]) for i in range(0, len(texts), batch_size)
+        ]
         vectors = np.concatenate(chunks) if chunks else np.zeros((0, embedder.dim), np.float32)
         logger.info("catalog embedded", extra={"products": len(products), "dim": embedder.dim})
         return cls(products, vectors.astype(np.float32))

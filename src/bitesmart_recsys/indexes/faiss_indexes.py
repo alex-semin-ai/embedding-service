@@ -29,9 +29,7 @@ class _FaissIndex(VectorIndex):
         params.sel = selector
         return params
 
-    def search(
-        self, queries: Matrix, k: int, flt: Filter | None = None
-    ) -> tuple[IdMatrix, Matrix]:
+    def search(self, queries: Matrix, k: int, flt: Filter | None = None) -> tuple[IdMatrix, Matrix]:
         queries = np.ascontiguousarray(queries, dtype=np.float32)
         picked = self._selector(flt)
         if picked is not None and not picked[1].any():
@@ -42,7 +40,7 @@ class _FaissIndex(VectorIndex):
         return ids.astype(np.int64), scores
 
     def memory_bytes(self) -> int | None:
-        return int(len(faiss.serialize_index(self._index)))
+        return len(faiss.serialize_index(self._index))
 
 
 class FaissFlatIndex(_FaissIndex):
@@ -67,14 +65,12 @@ class FaissHNSWIndex(_FaissIndex):
         self._index = index
 
     def _params(self, selector: Any) -> Any:
-        params = faiss.SearchParametersHNSW()
+        params = faiss.SearchParametersHNSW()  # type: ignore[attr-defined]
         params.efSearch = self.ef_search
         params.sel = selector
         return params
 
-    def search(
-        self, queries: Matrix, k: int, flt: Filter | None = None
-    ) -> tuple[IdMatrix, Matrix]:
+    def search(self, queries: Matrix, k: int, flt: Filter | None = None) -> tuple[IdMatrix, Matrix]:
         # An unfiltered search must still honour efSearch, so always pass parameters.
         queries = np.ascontiguousarray(queries, dtype=np.float32)
         picked = self._selector(flt)
@@ -85,9 +81,8 @@ class FaissHNSWIndex(_FaissIndex):
         scores = np.where(ids < 0, -np.inf, scores).astype(np.float32)
         return ids.astype(np.int64), scores
 
-    def set_search_params(self, ef_search: int | None = None) -> None:
-        if ef_search is not None:
-            self.ef_search = int(ef_search)
+    def set_search_params(self, **params: Any) -> None:
+        self.ef_search = self._accept_params(params, {"ef_search"}).get("ef_search", self.ef_search)
 
     def describe(self) -> dict[str, Any]:
         return {
@@ -126,9 +121,7 @@ class FaissIVFIndex(_FaissIndex):
         params.sel = selector
         return params
 
-    def search(
-        self, queries: Matrix, k: int, flt: Filter | None = None
-    ) -> tuple[IdMatrix, Matrix]:
+    def search(self, queries: Matrix, k: int, flt: Filter | None = None) -> tuple[IdMatrix, Matrix]:
         queries = np.ascontiguousarray(queries, dtype=np.float32)
         picked = self._selector(flt)
         if picked is not None and not picked[1].any():
@@ -138,9 +131,8 @@ class FaissIVFIndex(_FaissIndex):
         scores = np.where(ids < 0, -np.inf, scores).astype(np.float32)
         return ids.astype(np.int64), scores
 
-    def set_search_params(self, nprobe: int | None = None) -> None:
-        if nprobe is not None:
-            self.nprobe = int(nprobe)
+    def set_search_params(self, **params: Any) -> None:
+        self.nprobe = self._accept_params(params, {"nprobe"}).get("nprobe", self.nprobe)
 
     def describe(self) -> dict[str, Any]:
         return {"index": self.name, "nlist": self.nlist, "nprobe": self.nprobe}

@@ -93,7 +93,7 @@ def recall_at_k(found: NDArray[np.int64], truth: NDArray[np.int64]) -> float:
 
 
 def _rss_mb() -> float:
-    return psutil.Process().memory_info().rss / 2**20
+    return float(psutil.Process().memory_info().rss) / 2**20
 
 
 def _isolated_build_worker(
@@ -135,7 +135,9 @@ def measure_build_memory(spec: IndexSpec, data: BenchData) -> float | None:
         with ProcessPoolExecutor(max_workers=1, mp_context=mp.get_context("spawn")) as pool:
             return pool.submit(_isolated_build_worker, spec, data.vectors, data.payloads).result()
     except Exception:  # unavailable optional backend or sandboxed environment
-        logger.warning("isolated memory measurement failed", extra={"index": spec.name}, exc_info=True)
+        logger.warning(
+            "isolated memory measurement failed", extra={"index": spec.name}, exc_info=True
+        )
         return None
 
 
@@ -197,7 +199,9 @@ def run_benchmark(
                 results.append(
                     Result(
                         index=spec.name,
-                        build_params=str({k_: v for k_, v in spec.build.items() if k_ != "payload_schema"}),
+                        build_params=str(
+                            {k_: v for k_, v in spec.build.items() if k_ != "payload_schema"}
+                        ),
                         search_params=str(params),
                         filter=fname,
                         selectivity=round(selectivity[fname], 4),

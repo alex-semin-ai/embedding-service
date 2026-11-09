@@ -47,7 +47,9 @@ class Product(BaseModel):
         if self.brand:
             parts.append(f"brand {self.brand}")
         if self.categories_hierarchy:
-            parts.append("category " + ", ".join(c.removeprefix("en:") for c in self.categories_hierarchy))
+            parts.append(
+                "category " + ", ".join(c.removeprefix("en:") for c in self.categories_hierarchy)
+            )
         if self.labels_tags:
             parts.append("labels " + ", ".join(t.removeprefix("en:") for t in self.labels_tags))
         if self.ingredients_text:

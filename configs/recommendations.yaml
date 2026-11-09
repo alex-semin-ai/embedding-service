@@ -1,0 +1,29 @@
+# Default recommendation settings, load with load_recommendation_config().
+# Values mirror the best configuration from the BiteSmart thesis experiments.
+model_version: rec-v1
+similarity:
+  min_score: 0.1
+candidate_search:
+  limit: 200
+  top_k: 40
+  hard_constraints:
+    forbidden_allergens: []
+    forbidden_traces: []
+    same_category_as_source: false
+    dietary:
+      vegan: false
+    source_nutrients:
+      enforce: false
+scoring:
+  similarity: 1.0
+  brand_diversity: 0.10
+  category_diversity: 0.10
+diversity:
+  max_per_brand: 3
+  max_per_category: 5
+category_transition:
+  enabled: true
+  alpha: 0.15
+  threshold: 0.50
+  gamma: 2.0
+max_reasons: 3

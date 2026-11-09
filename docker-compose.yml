@@ -1,0 +1,43 @@
+name: bitesmart-recsys
+
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333'"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: .
+    image: ${DOCKERHUB_USERNAME:-bitesmart}/bitesmart-recsys:latest
+    ports:
+      - "8000:8000"
+    environment:
+      BITESMART_INDEX_BACKEND: qdrant
+      BITESMART_QDRANT_URL: http://qdrant:6333
+      BITESMART_MAX_BATCH_SIZE: "32"
+      BITESMART_MAX_WAIT_MS: "10"
+    volumes:
+      - hf_cache:/models  # the model is downloaded once and then reused
+    depends_on:
+      qdrant:
+        condition: service_healthy
+
+  # One command demo: docker compose --profile demo up --build --abort-on-container-exit --exit-code-from demo
+  demo:
+    build: .
+    profiles: ["demo"]
+    command: ["bitesmart", "demo", "--api-url", "http://api:8000"]
+    environment:
+      BITESMART_QDRANT_URL: http://qdrant:6333
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  qdrant_data:
+  hf_cache:

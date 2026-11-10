@@ -18,7 +18,8 @@ and measures.
 
 ## Run the demo with one command
 
-Requirements are Docker with Compose v2 and about 4 GB of free RAM (see the limitations).
+Requirements are Docker with Compose v2 and at least 2.5 GB of RAM available to Docker. The demo
+was verified with exactly that on a 3.4 GB laptop, and the first start takes several minutes.
 
 ```bash
 docker compose --profile demo up --build --abort-on-container-exit --exit-code-from demo

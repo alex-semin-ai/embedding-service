@@ -131,21 +131,41 @@ A short extract follows.
 | FAISS IVF | nprobe 8 | 0.716 | 0.502 | 0.211 | 0.25 | 30 |
 | FAISS IVF | nprobe 32 | 0.999 | 0.763 | 0.419 | 0.36 | 30 |
 
+### Index comparison in Docker, with hnswlib and the Qdrant server (5000 vectors)
+
+This run comes from the compose demo, so it includes Qdrant as a real server. Qdrant latency
+includes the HTTP round trip. Full tables are in
+[docs/benchmarks/index_benchmark_n5000_docker_qdrant.md](docs/benchmarks/index_benchmark_n5000_docker_qdrant.md).
+
+| Index | Params | recall@10 no filter | recall@10 vegan + Finland (25%) | recall@10 rare filter (1.2%) | p50 ms (rare filter) |
+|---|---|---|---|---|---|
+| FAISS Flat | | 1.000 | 1.000 | 1.000 | 0.13 |
+| FAISS HNSW | ef 64 | 1.000 | 0.861 | 0.406 | 0.32 |
+| hnswlib | ef 16 | 0.928 | 0.975 | 0.990 | 4.56 |
+| hnswlib | ef 64 | 0.999 | 0.996 | 1.000 | 7.97 |
+| Qdrant server | ef 64 | 1.000 | 1.000 | 1.000 | 6.06 |
+
 What this shows.
 
-- Without a filter HNSW is the clear winner, with recall 0.987 at 0.6 ms against 153 ms for exact NumPy.
-- Filters that correlate with the category (vegan, allergens) hurt approximate indexes badly.
-  HNSW with an in-search id selector drops to 0.77 at the same effort, and to 0.44 for a rare filter.
-- When a filter keeps few points, exact filtered search is both perfect and fast (0.23 ms for the 1.5%
-  filter), because it only scores the points that pass. An index that estimates the filter
-  cardinality and falls back to exact search, which is what Qdrant does with payload indexes,
-  is the right design for this workload.
-- Reproduce it with `uv run bitesmart bench --n 20000 --plots`. hnswlib needs the `ann` extra and
-  Qdrant needs a server, so run `docker compose up -d qdrant` and pass `--qdrant-url http://localhost:6333`.
-
-hnswlib and Qdrant server rows are produced by the Docker demo (step 5). They were not
-part of the table above, because the machine that produced it could not run Docker and a C++
-compiler at the same time.
+- Without a filter HNSW is the clear winner, with recall 0.987 at 0.6 ms against 153 ms for exact
+  NumPy (20 000 vectors).
+- Filters that correlate with the category (vegan, allergens) hurt FAISS HNSW and IVF, which apply
+  the filter as an id selector during the graph walk. At the same effort HNSW drops to 0.77 at
+  20 000 vectors, and to about 0.4 for a rare filter.
+- hnswlib and the Qdrant server keep recall near 1.0 under every filter. Qdrant does it with payload
+  indexes and a query planner that estimates how many points pass the filter. hnswlib does it
+  by continuing the graph walk until enough matching points are found, which costs latency
+  (a Python callback runs for every visited point).
+- When a filter keeps few points, exact filtered search is perfect and very fast (0.13 ms for the
+  1.2% filter), because it only scores the points that pass. This is why a planner that
+  falls back to exact search for selective filters is the right design for this workload.
+- Qdrant's per-query latency is mostly the network and serialisation cost, so for in-process
+  use FAISS or hnswlib are faster, and Qdrant wins on filter correctness, persistence and scaling.
+- The Qdrant memory figure (192 MB) is the server's resident growth including its own segment
+  overhead. It is not comparable with the in-process index sizes.
+- Reproduce with `uv run bitesmart bench --n 20000 --plots` for the in-process indexes. For Qdrant
+  run `docker compose up -d qdrant` and pass `--qdrant-url http://localhost:6333`.
+  hnswlib needs the `ann` extra, which compiles a C++ extension.
 
 ## The recommender
 

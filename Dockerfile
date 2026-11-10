@@ -45,7 +45,7 @@ RUN if [ "$PRELOAD_MODEL" = "true" ]; then \
 
 USER app
 EXPOSE 8000
-HEALTHCHECK --interval=15s --timeout=5s --start-period=240s --retries=5 \
+HEALTHCHECK --interval=15s --timeout=5s --start-period=600s --retries=5 \
     CMD python -c "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/healthz', timeout=4)"
 
 CMD ["bitesmart", "serve"]

@@ -16,3 +16,4 @@ bench_out/
 data/catalog_vectors.npy
 .idea/
 .vscode/
+data/real/

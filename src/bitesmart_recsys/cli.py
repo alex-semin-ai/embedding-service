@@ -163,6 +163,33 @@ def recommend(
     typer.echo(rec.recommend(source_id, cfg, top_n).model_dump_json(indent=2))
 
 
+@app.command("build-subset")
+def build_subset_cmd(
+    core: Annotated[Path, typer.Option(help="dataset_grade_core .jsonl.zst, read as a stream")],
+    index: Annotated[Path, typer.Option(help="index_grade .jsonl.zst, read as a stream")],
+    out: Path = Path("data/real/off_100k.jsonl"),
+    size: int = 100_000,
+    seed: int = 42,
+    pairs_csv: Annotated[
+        Path | None, typer.Option(help="Pair CSV whose src_id and alt_id are always kept")
+    ] = None,
+) -> None:
+    """Build a reproducible Open Food Facts subset. Source files are only read, never copied."""
+    from bitesmart_recsys.data import build_subset, read_labelled_ids
+    from bitesmart_recsys.recsys import write_products
+
+    _settings()
+    labelled = read_labelled_ids(pairs_csv) if pairs_csv else set()
+    result = build_subset(
+        core, index, size, seed, labelled, progress=lambda m: typer.echo(f"  {m}", err=True)
+    )
+    out.parent.mkdir(parents=True, exist_ok=True)
+    count = write_products(result.products, out)
+    manifest = out.with_suffix(".manifest.json")
+    manifest.write_text(json.dumps(result.stats, indent=2, ensure_ascii=False), encoding="utf-8")
+    typer.echo(f"wrote {count} products to {out} and the manifest to {manifest}")
+
+
 def _wait_for(client: httpx.Client, attempts: int = 90) -> dict[str, object]:
     for _ in range(attempts):
         try:

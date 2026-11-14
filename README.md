@@ -195,7 +195,17 @@ status changes.
 | Source | What it gives | Status |
 |---|---|---|
 | Substitution dataset from the thesis (pair files) | 12,254 distinct real products (2,924 sources and 9,608 alternatives) from five country pipelines (FR, DE, ES, US, IT). Original names, category hierarchy (1,865 leaf categories), allergens (present for 52% of products), labels (53%), countries, nutrients, Nutri-Score and NOVA. About 53.6 thousand labelled pairs, 29,024 gold and 24,555 silver, with graded labels bad, good, better, best. | Available locally |
-| Open Food Facts full export | Extra products used as distractors, to reach 50K and 100K products. | To download |
+| Open Food Facts subset (built locally) | 100,000 products streamed from the filtered core file with `bitesmart build-subset` (seed 42). Nested prefixes of 10K and 50K. 10,443 of the 12,256 labelled products are included. Output is `data/real/off_100k.jsonl` and is not committed. | Built |
+
+Composition of the 100K subset. It is 79% US, 18.5% France, 3.7% Germany, 2.1% Spain and 1.7% Italy
+(a product can carry several countries), so product names are mostly English. The cause is that the
+source core file holds 240,716 products and is 85% US, so the subset was sampled from it alone. The
+subset has 5,955 distinct leaf categories. 98.7% of products have a Nutri-Score, 97.9% a NOVA group,
+93% all five nutrients and 70% allergens. It has no brand and no ingredient text, and only 1.9% carry a
+vegan label and 2.5% a vegetarian label. The stats files that came with the data are out of date,
+because the data files were regenerated four days after them, so counts here come from the files
+themselves. The 10K and 50K prefixes are random and do not contain all labelled products, so quality
+tasks that need labels run on the full 100K set.
 
 Known gaps in the pair files. There is no brand, no ingredient text and no traces field. Vegan and
 vegetarian can only be read from label tags (647 and 903 products). An empty allergen list cannot

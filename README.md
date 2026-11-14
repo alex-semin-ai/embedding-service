@@ -183,6 +183,78 @@ Ported from the BiteSmart Product Substitution Recommender (thesis project). The
 Not ported are the MongoDB ingestion and the CatBoost reranker, because they need the full Open
 Food Facts dump and trained artifacts. The synthetic catalog has the same schema.
 
+## Evaluation protocol and roadmap (real Open Food Facts data)
+
+The results above use a synthetic catalog. The next step is to repeat them on real Open Food Facts
+products. This section is the protocol and the list of results still to be produced. Items marked
+"to do" have no numbers yet, and no result in this section should be read as measured until its
+status changes.
+
+### Data
+
+| Source | What it gives | Status |
+|---|---|---|
+| Substitution dataset from the thesis (pair files) | 12,254 distinct real products (2,924 sources and 9,608 alternatives) from five country pipelines (FR, DE, ES, US, IT). Original names, category hierarchy (1,865 leaf categories), allergens (present for 52% of products), labels (53%), countries, nutrients, Nutri-Score and NOVA. About 53.6 thousand labelled pairs, 29,024 gold and 24,555 silver, with graded labels bad, good, better, best. | Available locally |
+| Open Food Facts full export | Extra products used as distractors, to reach 50K and 100K products. | To download |
+
+Known gaps in the pair files. There is no brand, no ingredient text and no traces field. Vegan and
+vegetarian can only be read from label tags (647 and 903 products). An empty allergen list cannot
+tell "none" from "unknown". About 40% of products have no fibre value and 25% have no NOVA group.
+The clean files contain a few malformed rows, so they need tolerant parsing.
+
+### Protocol
+
+- Dataset sizes 10K, 50K and 100K. The sets are nested, and the labelled products are always included.
+- The same 1,000 held-out queries at every size.
+- ANN recall is measured against exact search that uses the same metadata filter.
+- Latency is one query at a time on one thread after warm-up, reported as p50 and p99.
+  Every point is repeated three times and the median is reported. The hardware is stated next to the results.
+- Parameter grids. HNSW with M in 16, 32, 64 and efSearch in 16 to 256. IVF with nlist in 256, 1024, 4096
+  and nprobe in 1 to 64. The same grid for hnswlib. Qdrant with m and hnsw_ef.
+- Memory (index size and build RSS), build time, and results saved as Parquet.
+
+### Figures and tables to produce
+
+| Id | Figure or table | What it shows | Status |
+|---|---|---|---|
+| F1 | recall@10 against p50 latency, every index and every parameter, 100K, no filter, log x-axis, with a table of p99, memory and build time | The speed and accuracy trade-off of each index | To do |
+| F2 | p50 and p99 latency against dataset size (10K, 50K, 100K) at one fixed operating point per index (recall at least 0.95), plus build time and memory against size | How cost grows, and where exact search stops being enough | To do |
+| F3 | Latency and recall against filter selectivity (100%, 50%, 10%, 1%, 0.1%) for every index. Two filter families, one uncorrelated with the vectors (country) and one correlated (category, vegan, allergen). Qdrant with and without payload indexes. | How metadata filters change speed and accuracy | To do |
+| F4 | MRR and recall@K (K = 1, 5, 10) for the quality tasks below | Whether search actually finds the right products | To do |
+| F5 | The same quality metrics with exact search, HNSW and IVF side by side | Whether ANN recall below 1.0 changes real quality | To do |
+
+### Quality tasks
+
+- **Task A, find a product by a noisy name.** The query is a product name with typos, dropped words or
+  another language. The right answer is that product. No labels are needed. Metrics are MRR and recall@1, 5, 10.
+- **Task B, find acceptable substitutes.** For each source product, alternatives labelled good, better
+  or best count as relevant, using the graded labels from the thesis. Metrics are MRR, recall@K and
+  nDCG@10, with and without the hard constraints. The candidates were pre-selected by the thesis
+  pipeline, so a product without a label is not proven irrelevant and recall is a conservative estimate.
+- **Task C (optional), composition by name.** The query is a product name and the documents are
+  ingredient lists. It only works for products that have ingredients, so it needs the full export.
+- **Ablations.** Name only against name plus category, with and without the `query:` prefix, and int8
+  against fp32 model weights.
+
+### Conclusions to write once F1 to F5 exist
+
+- Exact against approximate search. At what size exact search stops being enough, and how much faster
+  HNSW is at the same recall.
+- The effect of metadata filters. Which filters hurt which index and why, and when an exact scan wins.
+- The cost side. Memory, build time and IVF training against speed.
+- A short "if you have X, use Y" table.
+- Limits of the study. One laptop, single-thread latency, proxy labels, noisy data.
+- The exact commands and hardware needed to reproduce everything.
+
+### Code still to add
+
+- A loader for the pair files and the Open Food Facts export, and a 100K subset script.
+- Embedding with a cached `.npy` file that resumes after a stop.
+- The M and nlist grids, p99, a loop over dataset sizes, and a selectivity ladder of real filters.
+- Qdrant payload indexes switchable on and off.
+- The quality evaluation module, new plots, and results saved as Parquet.
+- API routes `POST /index/add`, `GET /search` and `GET /similar/{id}`, and a Streamlit page.
+
 ## Quality, tests and CI
 
 - 107 tests, 93% coverage (gate at 70%). Fixtures, parametrization over backends and filters,
@@ -200,7 +272,7 @@ Food Facts dump and trained artifacts. The synthetic catalog has the same schema
   to load. On small machines set `BITESMART_ONNX_FILE=onnx/model_qint8_avx512_vnni.onnx`
   (120 MB, slightly lower accuracy).
 - Embedded Qdrant (`:memory:`) is exact brute force. Only the Qdrant server is a fair HNSW comparison.
-- The catalog is synthetic. Real Open Food Facts data would shift recall numbers, though the
+- The catalog is synthetic for now, see the evaluation roadmap for the plan to use real Open Food Facts data. Real Open Food Facts data would shift recall numbers, though the
   trend for correlated filters should hold.
 - Benchmarks are single threaded latency on one machine. They show relative behaviour, not
   production capacity.
